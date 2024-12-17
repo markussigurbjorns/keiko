@@ -47,8 +47,9 @@ impl Buffer {
             self.move_left();
         } else {
             if self.cursor_y > 0 {
-                let line_str = self.buffer[self.cursor_y as usize][self.cursor_x as usize..].to_string();
-                self.buffer[self.cursor_y as usize-1].push_str(&line_str);
+                let line_str =
+                    self.buffer[self.cursor_y as usize][self.cursor_x as usize..].to_string();
+                self.buffer[self.cursor_y as usize - 1].push_str(&line_str);
                 self.buffer.remove(self.cursor_y as usize);
                 self.move_left();
             }
@@ -58,7 +59,8 @@ impl Buffer {
     fn new_line(&mut self) {
         let new_line = self.buffer[self.cursor_y as usize][self.cursor_x as usize..].to_string();
         self.buffer[self.cursor_y as usize].truncate(self.cursor_x as usize);
-        self.buffer.insert(self.cursor_y as usize+1 ,new_line.to_string());
+        self.buffer
+            .insert(self.cursor_y as usize + 1, new_line.to_string());
         self.cursor_x = 0;
         self.cursor_y += 1;
     }
@@ -103,6 +105,7 @@ fn render<T: Write>(stdout: &mut T, buffer: &Buffer) {
     stdout.queue(Clear(ClearType::All)).unwrap();
     stdout.queue(cursor::MoveTo(0, 0)).unwrap();
     stdout.write(buffer.buffer.join("\r\n").as_bytes()).unwrap();
+    stdout.flush().unwrap();
 }
 
 fn main() {
@@ -125,7 +128,6 @@ fn main() {
     let (mut _w, mut _h) = terminal::size().unwrap();
 
     render(&mut stdout, &buffer);
-    stdout.flush().unwrap();
 
     let mut quit = false;
     while !quit {
@@ -167,7 +169,6 @@ fn main() {
                 _ => {}
             }
         }
-
         stdout
             .queue(cursor::MoveTo(buffer.cursor_x, buffer.cursor_y))
             .unwrap();
