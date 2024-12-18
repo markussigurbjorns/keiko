@@ -1,9 +1,9 @@
 use crossterm::cursor;
-use crossterm::event::{poll, read, Event, KeyCode};
+use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{self, Clear, ClearType};
 use crossterm::QueueableCommand;
-use std::fs::read_to_string;
-use std::io::{stdout, Write};
+use std::fs::{read_to_string, File};
+use std::io::{stdout, Read, Write};
 use std::path::Path;
 use std::thread;
 use std::time::Duration;
@@ -13,10 +13,11 @@ struct Buffer {
     buffer: Vec<String>,
     cursor_x: u16,
     cursor_y: u16,
+    file_name: String,
 }
 
 impl Buffer {
-    fn new_from_file(file_content: String) -> Self {
+    fn new_from_file(file_content: String, file_name: String) -> Self {
         let mut buffer = Vec::new();
         for line in file_content.lines() {
             buffer.push(line.to_string());
@@ -25,6 +26,7 @@ impl Buffer {
             buffer,
             cursor_x: 0,
             cursor_y: 0,
+            file_name,
         }
     }
 
@@ -33,7 +35,13 @@ impl Buffer {
             buffer: Vec::new(),
             cursor_x: 0,
             cursor_y: 0,
+            file_name: "".to_string(),
         }
+    }
+
+    fn save(&self) {
+        let mut file = File::create(&self.file_name).unwrap();
+        file.write_all(self.buffer.join("\r\n").as_bytes()).unwrap();
     }
 
     fn insert_char(&mut self, c: char) {
@@ -111,8 +119,9 @@ fn render<T: Write>(stdout: &mut T, buffer: &Buffer) {
 fn main() {
     let args: Vec<String> = env::args().collect();
     let mut contents = String::new();
-
+    let mut filename = String::new();
     if args.len() > 1 {
+        filename = args[1].clone();
         if Path::new(&args[1]).exists() {
             contents = read_to_string(&args[1]).unwrap();
         }
@@ -121,7 +130,7 @@ fn main() {
         return;
     }
 
-    let mut buffer = Buffer::new_from_file(contents);
+    let mut buffer = Buffer::new_from_file(contents, filename);
     terminal::enable_raw_mode().unwrap();
     let mut stdout = stdout();
 
@@ -135,6 +144,10 @@ fn main() {
             match read().unwrap() {
                 Event::Key(event) => match event.code {
                     KeyCode::Char(c) => {
+                        if c == 's' && event.modifiers.contains(KeyModifiers::CONTROL) {
+                            buffer.save();
+                            continue;
+                        }
                         buffer.insert_char(c);
                         render(&mut stdout, &buffer);
                     }
