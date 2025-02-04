@@ -4,6 +4,7 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <portaudio.h>
+#include <sched.h>
 #include <pthread.h>
 #include <stdlib.h>
 
@@ -11,8 +12,8 @@
 #define NUM_SECONDS 9
 #define SINE_FREQ   440.0f
 #define AMPLITUDE   0.2f
-#define FRAMES_PER_BUFFER 256
-#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 4)
+#define FRAMES_PER_BUFFER 1024
+#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 8)
 
 
 /* ATOMIC RINGBUFFER*/
@@ -37,8 +38,8 @@ static void freeAtomicRingBuffer(AtomicRingBuffer *rb) {
 }
 
 static bool writeAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamples) {
-    int readPos = atomic_load(&rb->readPos);
-    int writePos = atomic_load(&rb->writePos);
+    int readPos = atomic_load_explicit(&rb->readPos, memory_order_acquire);
+    int writePos = atomic_load_explicit(&rb->writePos, memory_order_relaxed);
     
     int available = (readPos > writePos) ? (readPos - writePos) : (rb->size - writePos + readPos);
 
@@ -49,13 +50,13 @@ static bool writeAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamp
         writePos = (writePos + 1) % rb->size;
     }
 
-    atomic_store(&rb->writePos, writePos);
+    atomic_store_explicit(&rb->writePos, writePos, memory_order_release);
     return true;
 }
 
 static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamples) {
-    int readPos = atomic_load(&rb->readPos);
-    int writePos = atomic_load(&rb->writePos);
+    int readPos = atomic_load_explicit(&rb->readPos, memory_order_relaxed);
+    int writePos = atomic_load_explicit(&rb->writePos, memory_order_acquire);
 
     int available = (writePos >= readPos) ? (writePos - readPos) : (rb->size -readPos + writePos);
 
@@ -65,7 +66,7 @@ static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSampl
         data[i] = rb->buffer[readPos];
         readPos = (readPos + 1) % rb->size;
     }
-    atomic_store(&rb->readPos, readPos);
+    atomic_store_explicit(&rb->readPos, readPos, memory_order_release);
     return true;
 }
 
@@ -74,7 +75,9 @@ AtomicRingBuffer rb;
 /***********************/
 /* AUDIO PROCESSING THREAD */
 
-void *audioProcessingThread(void *args) {
+volatile bool running = true;
+
+static void *audioProcessingThread(void *args) {
 
     float buffer[FRAMES_PER_BUFFER*2]; // stereo
 
@@ -84,10 +87,10 @@ void *audioProcessingThread(void *args) {
     float leftPhaseIncrement = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
     float rightPhaseIncrement = leftPhaseIncrement * 0.8;
     
-    while (true) {
-        for (int i=0; i<FRAMES_PER_BUFFER*2;i++) {
+    while (running) {
+        for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
             buffer[i]   = AMPLITUDE * sinf(left_phase);
-            buffer[++i] = AMPLITUDE * sinf(right_phase);
+            buffer[i+1] = AMPLITUDE * sinf(right_phase);
 
             left_phase += leftPhaseIncrement;
             if (left_phase >= (2.0f * M_PI)) left_phase -= 2.0f * M_PI;
@@ -96,7 +99,8 @@ void *audioProcessingThread(void *args) {
             if (right_phase >= (2.0) * M_PI) right_phase -= 2.0f * M_PI;
         }
 
-        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2)) {
+        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
+            Pa_Sleep(100);
             //buffer is full
         }
     }
@@ -129,8 +133,15 @@ static int patestCallback(const void *inputBuffer,
     (void)timeinfo;
     (void)statusFlags;
 
-    while (!readAtomicRingBuffer(&rb, out, FRAMES_PER_BUFFER*2)) {
+    //while (!readAtomicRingBuffer(&rb, out, FRAMES_PER_BUFFER*2)) {
         //buffer is empty
+    //}
+    if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
+        // Buffer is empty, fill with silence
+        //printf("do I get here?\n");
+        for (int i = 0; i < framesPerBuffer * 2; i++) {
+            out[i] = 0.0f;
+        }
     }
 
     return 0;
@@ -197,6 +208,7 @@ int main(){
 
     printf("PortAudio terminated successfully.\n");
 
+    running = false;
     pthread_cancel(audioThread); 
     pthread_join(audioThread, NULL);
     freeAtomicRingBuffer(&rb);
