@@ -100,7 +100,7 @@ static void *audioProcessingThread(void *args) {
         }
 
         while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
-            Pa_Sleep(100);
+            //Pa_Sleep(100);
             //buffer is full
         }
     }
@@ -133,17 +133,25 @@ static int patestCallback(const void *inputBuffer,
     (void)timeinfo;
     (void)statusFlags;
 
-    //while (!readAtomicRingBuffer(&rb, out, FRAMES_PER_BUFFER*2)) {
-        //buffer is empty
-    //}
-    if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
-        // Buffer is empty, fill with silence
-        //printf("do I get here?\n");
-        for (int i = 0; i < framesPerBuffer * 2; i++) {
-            out[i] = 0.0f;
-        }
-    }
+    static float lastBuffer[FRAMES_PER_BUFFER * 2];
+    static bool hasLastBuffer = false; 
 
+    if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
+        if (hasLastBuffer) {
+            for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
+                out[i] = lastBuffer[i];
+            }
+        } else {
+            for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
+                out[i] = 0.0f;
+            }
+        }
+    } else {
+        for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
+            lastBuffer[i] = out[i];
+        }
+        hasLastBuffer = true;
+    }
     return 0;
 }
 
