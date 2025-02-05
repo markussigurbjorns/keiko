@@ -24,7 +24,6 @@ typedef struct {
     int size;
     atomic_int readPos;
     atomic_int writePos;
-
 } AtomicRingBuffer ;
 
 static void initAtomicRingBuffer(AtomicRingBuffer *rb, int size) {
@@ -58,14 +57,6 @@ static bool writeAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamp
     atomic_store_explicit(&rb->writePos, (writePos + numSamples) % rb->size, memory_order_release);
     return true;
 
-    /*
-    for (int i = 0; i < numSamples; i++) {
-        rb->buffer[writePos] = data[i];
-        writePos = (writePos + 1) % rb->size;
-    }
-
-    atomic_store_explicit(&rb->writePos, writePos, memory_order_release);
-    return true;*/
 }
 
 static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamples) {
@@ -87,14 +78,6 @@ static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSampl
 
     atomic_store_explicit(&rb->readPos, (readPos + numSamples) % rb->size, memory_order_release);
     return true;
-
-    /*
-    for (int i = 0; i < numSamples; i++) {
-        data[i] = rb->buffer[readPos];
-        readPos = (readPos + 1) % rb->size;
-    }
-    atomic_store_explicit(&rb->readPos, readPos, memory_order_release);
-    return true;*/
 }
 
 AtomicRingBuffer rb;
@@ -106,7 +89,7 @@ volatile bool running = true;
 
 static void *audioProcessingThread(void *args) {
 
-    float buffer[FRAMES_PER_BUFFER*2]; // stereo
+    float buffer[FRAMES_PER_BUFFER*4]; // stereo
 
     static float right_phase = 0.0f;
     static float left_phase = 0.0f;
@@ -115,7 +98,7 @@ static void *audioProcessingThread(void *args) {
     float rightPhaseIncrement = leftPhaseIncrement * 0.8;
     
     while (running) {
-        for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
+        for (int i=0; i<FRAMES_PER_BUFFER*4;i+=2) {
             buffer[i]   = AMPLITUDE * sinf(left_phase);
             buffer[i+1] = AMPLITUDE * sinf(right_phase);
 
@@ -126,10 +109,9 @@ static void *audioProcessingThread(void *args) {
             if (right_phase >= (2.0) * M_PI) right_phase -= 2.0f * M_PI;
         }
 
-        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
-            printf("do I get here?\n");
-            Pa_Sleep(1000);
-            sched_yield();
+        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*4) && running) {
+            Pa_Sleep(100);
+            //sched_yield();
             //buffer is full
         }
     }
@@ -167,18 +149,12 @@ static int patestCallback(const void *inputBuffer,
 
     if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
         if (hasLastBuffer) {
-            for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
-                out[i] = lastBuffer[i];
-            }
+            memcpy(out, lastBuffer, framesPerBuffer * 2 * sizeof(float));
         } else {
-            for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
-                out[i] = 0.0f;
-            }
+            memset(out, 0, framesPerBuffer * 2 * sizeof(float));
         }
     } else {
-        for (long unsigned i = 0; i < framesPerBuffer * 2; i++) {
-            lastBuffer[i] = out[i];
-        }
+        memcpy(lastBuffer, out, framesPerBuffer * 2 * sizeof(float));
         hasLastBuffer = true;
     }
     return 0;
