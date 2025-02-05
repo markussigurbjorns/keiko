@@ -5,17 +5,15 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 #include <portaudio.h>
-#include <sched.h>
 #include <pthread.h>
 #include <stdlib.h>
 
 #define SAMPLE_RATE 44100
-#define NUM_SECONDS 9
-#define SINE_FREQ   440.0f
+#define NUM_SECONDS 20
+#define SINE_FREQ   220.0f
 #define AMPLITUDE   0.2f
-#define FRAMES_PER_BUFFER 8192
-#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 2+1)
-
+#define FRAMES_PER_BUFFER 128
+#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 8+1)
 
 /* ATOMIC RINGBUFFER*/
 
@@ -87,7 +85,7 @@ AtomicRingBuffer rb;
 
 volatile bool running = true;
 
-static void *audioProcessingThread(void *args) {
+static void* audioProcessingThread(void *args) {
 
     float buffer[FRAMES_PER_BUFFER*2]; // stereo
 
@@ -110,15 +108,13 @@ static void *audioProcessingThread(void *args) {
         }
 
         while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
-            Pa_Sleep(100);
-            //sched_yield();
             //buffer is full
+            Pa_Sleep(1);
         }
     }
     return NULL;
 }
 /*********************/
-
 
 typedef struct {
     float left_phase;
@@ -126,7 +122,6 @@ typedef struct {
     float rightPhaseIncrement;
     float leftPhaseIncrement;
 } paUserData;
-
 
 paUserData data;
 
@@ -147,6 +142,7 @@ static int patestCallback(const void *inputBuffer,
     static float lastBuffer[FRAMES_PER_BUFFER * 2];
     static bool hasLastBuffer = false; 
 
+    // I am not sure about this handling of buffer underflow
     if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
         if (hasLastBuffer) {
             memcpy(out, lastBuffer, framesPerBuffer * 2 * sizeof(float));
