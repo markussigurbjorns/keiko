@@ -14,7 +14,7 @@
 #define SINE_FREQ   440.0f
 #define AMPLITUDE   0.2f
 #define FRAMES_PER_BUFFER 8192
-#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 4 +1)
+#define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 2+1)
 
 
 /* ATOMIC RINGBUFFER*/
@@ -89,7 +89,7 @@ volatile bool running = true;
 
 static void *audioProcessingThread(void *args) {
 
-    float buffer[FRAMES_PER_BUFFER*4]; // stereo
+    float buffer[FRAMES_PER_BUFFER*2]; // stereo
 
     static float right_phase = 0.0f;
     static float left_phase = 0.0f;
@@ -98,7 +98,7 @@ static void *audioProcessingThread(void *args) {
     float rightPhaseIncrement = leftPhaseIncrement * 0.8;
     
     while (running) {
-        for (int i=0; i<FRAMES_PER_BUFFER*4;i+=2) {
+        for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
             buffer[i]   = AMPLITUDE * sinf(left_phase);
             buffer[i+1] = AMPLITUDE * sinf(right_phase);
 
@@ -109,7 +109,7 @@ static void *audioProcessingThread(void *args) {
             if (right_phase >= (2.0) * M_PI) right_phase -= 2.0f * M_PI;
         }
 
-        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*4) && running) {
+        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
             Pa_Sleep(100);
             //sched_yield();
             //buffer is full
