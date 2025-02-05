@@ -1,4 +1,5 @@
 #include <math.h>
+#include <string.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdatomic.h>
@@ -45,13 +46,26 @@ static bool writeAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamp
 
     if (available < numSamples) return false;
 
+    int spaceToEnd = rb->size - writePos;
+
+    if (spaceToEnd >= numSamples) {
+        memcpy(&rb->buffer[writePos], data, numSamples * sizeof(float));
+    } else {
+        memcpy(&rb->buffer[writePos], data, spaceToEnd * sizeof(float));
+        memcpy(&rb->buffer[0], &data[spaceToEnd], (numSamples - spaceToEnd) * sizeof(float));
+    }
+
+    atomic_store_explicit(&rb->writePos, (writePos + numSamples) % rb->size, memory_order_release);
+    return true;
+
+    /*
     for (int i = 0; i < numSamples; i++) {
         rb->buffer[writePos] = data[i];
         writePos = (writePos + 1) % rb->size;
     }
 
     atomic_store_explicit(&rb->writePos, writePos, memory_order_release);
-    return true;
+    return true;*/
 }
 
 static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamples) {
@@ -62,12 +76,25 @@ static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSampl
 
     if (available < numSamples) return false;
 
+    int spaceToEnd = rb->size - readPos;
+
+    if (spaceToEnd >= numSamples) {
+        memcpy(data, &rb->buffer[readPos], numSamples * sizeof(float));
+    } else {
+        memcpy(data, &rb->buffer[readPos], spaceToEnd * sizeof(float));
+        memcpy(&data[spaceToEnd], &rb->buffer[0], (numSamples - spaceToEnd) * sizeof(float));
+    }
+
+    atomic_store_explicit(&rb->readPos, (readPos + numSamples) % rb->size, memory_order_release);
+    return true;
+
+    /*
     for (int i = 0; i < numSamples; i++) {
         data[i] = rb->buffer[readPos];
         readPos = (readPos + 1) % rb->size;
     }
     atomic_store_explicit(&rb->readPos, readPos, memory_order_release);
-    return true;
+    return true;*/
 }
 
 AtomicRingBuffer rb;
@@ -100,7 +127,9 @@ static void *audioProcessingThread(void *args) {
         }
 
         while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
-            //Pa_Sleep(100);
+            printf("do I get here?\n");
+            Pa_Sleep(1000);
+            sched_yield();
             //buffer is full
         }
     }
