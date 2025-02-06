@@ -1,3 +1,6 @@
+#ifndef keiko_audio_interface_h
+#define keiko_audio_interface_h
+
 
 typedef enum {
     Sine,
@@ -28,3 +31,6 @@ typedef struct {
 } AudioInterface;
 
 SineOsc* allocateSineOsc(float freq);
+
+
+#endif

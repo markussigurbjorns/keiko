@@ -1,8 +1,7 @@
-
 # Compiler and flags
 CC = gcc
 CFLAGS = -Wall -std=c11 -g  -fsanitize=address
-LDFLAGS =
+LDFLAGS = -lportaudio -lm 
 
 # Output executable
 TARGET = keiko

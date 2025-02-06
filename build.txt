@@ -1,1 +1,1 @@
-gcc main.c -o main -lportaudio -lm -Wall -Wextra
+gcc main.c audioInterface.c -o main -lportaudio -lm -Wall -Wextra

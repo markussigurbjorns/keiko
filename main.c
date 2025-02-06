@@ -12,10 +12,10 @@
 
 #define SAMPLE_RATE 44100
 #define NUM_SECONDS 20
-#define SINE_FREQ   420.69f
+#define SINE_FREQ   440.0f
 #define AMPLITUDE   0.2f
-#define MOD_FREQ    200.0f
-#define MOD_DEPTH   1.0f
+#define MOD_FREQ    10.0f
+#define MOD_DEPTH   0.5f
 #define FRAMES_PER_BUFFER 128
 #define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 8+1)
 
