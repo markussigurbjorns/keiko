@@ -10,8 +10,10 @@
 
 #define SAMPLE_RATE 44100
 #define NUM_SECONDS 20
-#define SINE_FREQ   220.0f
+#define SINE_FREQ   420.69f
 #define AMPLITUDE   0.2f
+#define MOD_FREQ    200.0f
+#define MOD_DEPTH   1.0f
 #define FRAMES_PER_BUFFER 128
 #define RING_BUFFER_SIZE (FRAMES_PER_BUFFER * 8+1)
 
@@ -54,7 +56,6 @@ static bool writeAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamp
 
     atomic_store_explicit(&rb->writePos, (writePos + numSamples) % rb->size, memory_order_release);
     return true;
-
 }
 
 static bool readAtomicRingBuffer(AtomicRingBuffer *rb, float *data, int numSamples) {
@@ -92,19 +93,31 @@ static void* audioProcessingThread(void *args) {
     static float right_phase = 0.0f;
     static float left_phase = 0.0f;
 
-    float leftPhaseIncrement = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
-    float rightPhaseIncrement = leftPhaseIncrement * 0.8;
+    float left_phase_increment = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
+    float right_phase_increment = left_phase_increment * 0.8;
+
+    static float mod_phase = 0.0f;
+    float mod_phase_increment = (2.0f * (float)M_PI * MOD_FREQ) / (float)SAMPLE_RATE;
+    float mod_depth = MOD_DEPTH;
     
     while (running) {
         for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
+
+            float mod = sinf(mod_phase) * mod_depth;
+            float modulated_left_phase_increment = left_phase_increment * (1.0f + mod);
+            float modulated_right_phase_increment = right_phase_increment * (1.0f + mod);
+
             buffer[i]   = AMPLITUDE * sinf(left_phase);
             buffer[i+1] = AMPLITUDE * sinf(right_phase);
 
-            left_phase += leftPhaseIncrement;
+            left_phase += modulated_left_phase_increment;
             if (left_phase >= (2.0f * M_PI)) left_phase -= 2.0f * M_PI;
 
-            right_phase += rightPhaseIncrement;
+            right_phase += modulated_right_phase_increment;
             if (right_phase >= (2.0) * M_PI) right_phase -= 2.0f * M_PI;
+            
+            mod_phase += mod_phase_increment;
+            if (mod_phase >= (2.0f * M_PI)) mod_phase -= 2.0f * M_PI;
         }
 
         while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
