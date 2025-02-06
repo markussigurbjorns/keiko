@@ -8,6 +8,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 
+#include "audioInterface.h"
+
 #define SAMPLE_RATE 44100
 #define NUM_SECONDS 20
 #define SINE_FREQ   420.69f
@@ -88,12 +90,14 @@ volatile bool running = true;
 
 static void* audioProcessingThread(void *args) {
 
+    SineOsc * sineOsc = (SineOsc*)args;
+
     float buffer[FRAMES_PER_BUFFER*2]; // stereo
 
     static float right_phase = 0.0f;
     static float left_phase = 0.0f;
 
-    float left_phase_increment = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
+    float left_phase_increment = (2.0f * (float)M_PI * sineOsc->freq) / (float)SAMPLE_RATE; 
     float right_phase_increment = left_phase_increment * 0.8;
 
     static float mod_phase = 0.0f;
@@ -174,6 +178,8 @@ int main(){
     PaError err;
     PaStream *stream;
 
+    SineOsc* sineOsc = allocateSineOsc(SINE_FREQ);
+
     initAtomicRingBuffer(&rb, RING_BUFFER_SIZE);
 
     err = Pa_Initialize();
@@ -184,7 +190,7 @@ int main(){
     //printf("PortAudio version: %s\n", Pa_GetVersionText());
 
     pthread_t audioThread;
-    pthread_create(&audioThread, NULL, audioProcessingThread, NULL);
+    pthread_create(&audioThread, NULL, audioProcessingThread, sineOsc);
 
     err = Pa_OpenDefaultStream(&stream,
                                0, 
