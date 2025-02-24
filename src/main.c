@@ -8,7 +8,8 @@
 #include <pthread.h>
 #include <stdlib.h>
 
-#include "audioInterface.h"
+#include "audio_graph.h"
+#include "sine_osc_module.h"
 
 #define SAMPLE_RATE 44100
 #define NUM_SECONDS 20
@@ -90,21 +91,24 @@ volatile bool running = true;
 
 static void* audioProcessingThread(void *args) {
 
-    SineOsc * sineOsc = (SineOsc*)args;
+    AudioGraph* graph = (AudioGraph*)args;
 
     float buffer[FRAMES_PER_BUFFER*2]; // stereo
 
+    /*
     static float right_phase = 0.0f;
     static float left_phase = 0.0f;
 
-    float left_phase_increment = (2.0f * (float)M_PI * sineOsc->freq) / (float)SAMPLE_RATE; 
+    float left_phase_increment = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
     float right_phase_increment = left_phase_increment * 0.8;
 
     static float mod_phase = 0.0f;
     float mod_phase_increment = (2.0f * (float)M_PI * MOD_FREQ) / (float)SAMPLE_RATE;
     float mod_depth = MOD_DEPTH;
-    
+    */
     while (running) {
+
+        /*
         for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
 
             float mod = sinf(mod_phase) * mod_depth;
@@ -122,7 +126,9 @@ static void* audioProcessingThread(void *args) {
             
             mod_phase += mod_phase_increment;
             if (mod_phase >= (2.0f * M_PI)) mod_phase -= 2.0f * M_PI;
-        }
+        }*/
+
+        process_graph(graph, FRAMES_PER_BUFFER);
 
         while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
             //buffer is full
@@ -178,9 +184,15 @@ int main(){
     PaError err;
     PaStream *stream;
 
-    SineOsc* sineOsc = allocateSineOsc(SINE_FREQ);
-
     initAtomicRingBuffer(&rb, RING_BUFFER_SIZE);
+
+    AudioGraph* graph = create_audio_graph();
+    AudioNode* sine_osc = create_audio_node(&SineOscillatorModule);
+
+    sine_osc->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 220.0f);
+    sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM,0.2);
+
+    init_graph(graph, SAMPLE_RATE, FRAMES_PER_BUFFER);
 
     err = Pa_Initialize();
     if (err != paNoError) {
@@ -190,7 +202,7 @@ int main(){
     //printf("PortAudio version: %s\n", Pa_GetVersionText());
 
     pthread_t audioThread;
-    pthread_create(&audioThread, NULL, audioProcessingThread, sineOsc);
+    pthread_create(&audioThread, NULL, audioProcessingThread, graph);
 
     err = Pa_OpenDefaultStream(&stream,
                                0, 
