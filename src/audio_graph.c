@@ -114,7 +114,7 @@ void init_graph(AudioGraph *graph, int sampleRate, int bufferSize) {
         AudioNode* node = graph->nodes[i];
 
         if (node->interface->init) {
-            node->interface->init(node->instance, sampleRate);
+            node->interface->init(node->instance, sampleRate, bufferSize);
         }
 
         node->inputBuffer = realloc(node->inputBuffer, bufferSize*sizeof(float));
@@ -127,7 +127,7 @@ void init_graph(AudioGraph *graph, int sampleRate, int bufferSize) {
         memset(node->inputBuffer, 0, bufferSize*sizeof(float));
         memset(node->outputBuffer, 0, bufferSize*sizeof(float));
     }
-    graph->nodes = topological_sort(graph);
+    //graph->nodes = topological_sort(graph);
 }
 
 void process_graph(AudioGraph *graph, int numSamples) {

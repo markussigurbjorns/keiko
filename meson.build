@@ -13,7 +13,12 @@ math_lib = cc.find_library('m', required: true)
 include = include_directories('include')
 include_modules = include_directories('include/modules')
 
-src_files = files('src/audio_graph.c', 'src/main.c', 'src/modules/sine_osc_module.c')
+src_files = files(
+  'src/audio_graph.c',
+  'src/main.c',
+  'src/modules/output_module.c',
+  'src/modules/sine_osc_module.c',
+)
 
 executable(
   'main',

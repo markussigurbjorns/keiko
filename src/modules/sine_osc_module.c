@@ -5,19 +5,20 @@
 
 static void* create(void) {
     SineOscillator* osc = (SineOscillator*)calloc(1, sizeof(SineOscillator));
+    osc->frequency = 440.0f;
+    osc->gain = 0.2;
+    osc->phase = 0.0f;
     return osc;
 }
 
 static void destroy(void* instance) {
-    free(instance);
+    SineOscillator* osc = (SineOscillator*)instance;
+    free(osc);
 }
 
-static void init(void* instance, int sampleRate) {
+static void init(void* instance, int sampleRate, int bufferSize) {
     SineOscillator* osc = (SineOscillator*)instance;
-    osc->frequency = 440.0f;
-    osc->gain = 0.2;
     osc->sampleRate = sampleRate;
-    osc->phase = 0.0f;
 }
 
 static void process(void* instance, const float *input, float *output, int numSamples) {

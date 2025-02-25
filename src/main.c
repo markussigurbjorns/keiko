@@ -10,6 +10,7 @@
 
 #include "audio_graph.h"
 #include "sine_osc_module.h"
+#include "output_module.h"
 
 #define SAMPLE_RATE 44100
 #define NUM_SECONDS 20
@@ -93,44 +94,13 @@ static void* audioProcessingThread(void *args) {
 
     AudioGraph* graph = (AudioGraph*)args;
 
-    float buffer[FRAMES_PER_BUFFER*2]; // stereo
+    OutputNode* out = (OutputNode*)graph->nodes[graph->numNodes-1]->instance;
 
-    /*
-    static float right_phase = 0.0f;
-    static float left_phase = 0.0f;
-
-    float left_phase_increment = (2.0f * (float)M_PI * SINE_FREQ) / (float)SAMPLE_RATE; 
-    float right_phase_increment = left_phase_increment * 0.8;
-
-    static float mod_phase = 0.0f;
-    float mod_phase_increment = (2.0f * (float)M_PI * MOD_FREQ) / (float)SAMPLE_RATE;
-    float mod_depth = MOD_DEPTH;
-    */
     while (running) {
-
-        /*
-        for (int i=0; i<FRAMES_PER_BUFFER*2;i+=2) {
-
-            float mod = sinf(mod_phase) * mod_depth;
-            float modulated_left_phase_increment = left_phase_increment * (1.0f + mod);
-            float modulated_right_phase_increment = right_phase_increment * (1.0f + mod);
-
-            buffer[i]   = AMPLITUDE * sinf(left_phase);
-            buffer[i+1] = AMPLITUDE * sinf(right_phase);
-
-            left_phase += modulated_left_phase_increment;
-            if (left_phase >= (2.0f * M_PI)) left_phase -= 2.0f * M_PI;
-
-            right_phase += modulated_right_phase_increment;
-            if (right_phase >= (2.0) * M_PI) right_phase -= 2.0f * M_PI;
-            
-            mod_phase += mod_phase_increment;
-            if (mod_phase >= (2.0f * M_PI)) mod_phase -= 2.0f * M_PI;
-        }*/
 
         process_graph(graph, FRAMES_PER_BUFFER);
 
-        while (!writeAtomicRingBuffer(&rb, buffer, FRAMES_PER_BUFFER*2) && running) {
+        while (!writeAtomicRingBuffer(&rb, out->outputs[0], FRAMES_PER_BUFFER) && running) {
             //buffer is full
             Pa_Sleep(1);
         }
@@ -162,18 +132,18 @@ static int patestCallback(const void *inputBuffer,
     (void)timeinfo;
     (void)statusFlags;
 
-    static float lastBuffer[FRAMES_PER_BUFFER * 2];
+    static float lastBuffer[FRAMES_PER_BUFFER];
     static bool hasLastBuffer = false; 
 
     // I am not sure about this handling of buffer underflow
-    if (!readAtomicRingBuffer(&rb, out, framesPerBuffer * 2)) {
+    if (!readAtomicRingBuffer(&rb, out, framesPerBuffer)) {
         if (hasLastBuffer) {
-            memcpy(out, lastBuffer, framesPerBuffer * 2 * sizeof(float));
+            memcpy(out, lastBuffer, framesPerBuffer * sizeof(float));
         } else {
-            memset(out, 0, framesPerBuffer * 2 * sizeof(float));
+            memset(out, 0, framesPerBuffer * sizeof(float));
         }
     } else {
-        memcpy(lastBuffer, out, framesPerBuffer * 2 * sizeof(float));
+        memcpy(lastBuffer, out, framesPerBuffer * sizeof(float));
         hasLastBuffer = true;
     }
     return 0;
@@ -187,10 +157,17 @@ int main(){
     initAtomicRingBuffer(&rb, RING_BUFFER_SIZE);
 
     AudioGraph* graph = create_audio_graph();
+
     AudioNode* sine_osc = create_audio_node(&SineOscillatorModule);
+    add_node(graph, sine_osc);
 
     sine_osc->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 220.0f);
-    sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM,0.2);
+    sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM, 0.2);
+
+    AudioNode* out = create_audio_node(&OutputNodeModule);
+    add_node(graph, out);
+
+    connect_nodes(graph, sine_osc, out);
 
     init_graph(graph, SAMPLE_RATE, FRAMES_PER_BUFFER);
 
@@ -206,7 +183,7 @@ int main(){
 
     err = Pa_OpenDefaultStream(&stream,
                                0, 
-                               2,
+                               1,
                                paFloat32,
                                SAMPLE_RATE, 
                                FRAMES_PER_BUFFER, 
@@ -239,6 +216,7 @@ int main(){
         return 1;
     }
 
+    destroy_audio_graph(graph);
     
     err = Pa_Terminate();
     if (err != paNoError) {

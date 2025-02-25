@@ -4,7 +4,7 @@
 typedef struct {
     void* (*create)(void);
     void  (*destroy)(void* instance);
-    void  (*init)(void* instance, int sampleRate);
+    void  (*init)(void* instance, int sampleRate, int bufferSize);
     void  (*process)(void *instance, const float *input, float *output, int numSamples);
     void  (*setParameter)(void *instance, int parameterId, float value);
     float  (*getParameter)(void *instance, int parameterId);
