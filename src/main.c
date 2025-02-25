@@ -164,10 +164,17 @@ int main(){
     sine_osc->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 220.0f);
     sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM, 0.2);
 
+    AudioNode* sine_osc_2 = create_audio_node(&SineOscillatorModule);
+    add_node(graph, sine_osc_2);
+
+    sine_osc_2->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 800.0f);
+    sine_osc_2->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM, 0.1);
+
     AudioNode* out = create_audio_node(&OutputNodeModule);
     add_node(graph, out);
 
     connect_nodes(graph, sine_osc, out);
+    connect_nodes(graph, sine_osc_2, out);
 
     init_graph(graph, SAMPLE_RATE, FRAMES_PER_BUFFER);
 
