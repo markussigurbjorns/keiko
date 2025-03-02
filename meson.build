@@ -16,6 +16,7 @@ include_modules = include_directories('include/modules')
 src_files = files(
   'src/audio_graph.c',
   'src/main.c',
+  'src/modules/lowpass_filter_module.c',
   'src/modules/output_module.c',
   'src/modules/sine_osc_module.c',
 )

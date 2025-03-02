@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include "sine_osc_module.h"
@@ -5,6 +6,10 @@
 
 static void* create(void) {
     SineOscillator* osc = (SineOscillator*)calloc(1, sizeof(SineOscillator));
+    if (!osc) {
+        fprintf(stderr, "Failed to allocate osc");
+        return NULL;
+    }
     osc->frequency = 440.0f;
     osc->gain = 0.2;
     osc->phase = 0.0f;
@@ -46,7 +51,7 @@ static void setParameter(void* instance, int parameterId, float value) {
             osc->gain = value;
             break;
     }
-}
+} 
 
 static float getParameter(void* instance, int parameterId) {
     SineOscillator* osc = (SineOscillator*)instance;
