@@ -144,15 +144,15 @@ void process_graph(AudioGraph *graph, int numSamples) {
 
         memset(node->inputBuffer, 0, numSamples*sizeof(float));
 
+        const float inputScale = 1.0f / (node->numIncoming + 1);
         for (int j = 0; j < node->numIncoming; j++) {
             Connection *conn = node->incoming[j];
             AudioNode *src = conn->source;
             
             if (!src->outputBuffer) {continue;}
 
-            //maybe use SIMD here????
             for (int k = 0; k < numSamples; k++) {
-                node->inputBuffer[k] += src->outputBuffer[k];
+                node->inputBuffer[k] += src->outputBuffer[k] * inputScale;
             }
         }
 

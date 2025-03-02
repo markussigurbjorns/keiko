@@ -163,24 +163,24 @@ int main(){
     add_node(graph, sine_osc);
 
     sine_osc->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 220.0f);
-    sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM, 0.4);
+    sine_osc->interface->setParameter(sine_osc->instance, OSC_GAIN_PARAM, 1.0f);
 
     AudioNode* sine_osc_2 = create_audio_node(&SineOscillatorModule);
     add_node(graph, sine_osc_2);
 
     sine_osc_2->interface->setParameter(sine_osc_2->instance, OSC_FREQUENCY_PARAM, 261.626f);
-    sine_osc_2->interface->setParameter(sine_osc_2->instance, OSC_GAIN_PARAM, 0.4);    
+    sine_osc_2->interface->setParameter(sine_osc_2->instance, OSC_GAIN_PARAM, 1.0f);    
 
     AudioNode* sine_osc_3 = create_audio_node(&SineOscillatorModule);
     add_node(graph, sine_osc_3);
 
     sine_osc_3->interface->setParameter(sine_osc_3->instance, OSC_FREQUENCY_PARAM, 329.628f);
-    sine_osc_3->interface->setParameter(sine_osc_3->instance, OSC_GAIN_PARAM, 0.4);
+    sine_osc_3->interface->setParameter(sine_osc_3->instance, OSC_GAIN_PARAM, 1.0f);
 
     AudioNode* lpf = create_audio_node(&LowPassFilterModule);
     add_node(graph, lpf);
 
-    lpf->interface->setParameter(lpf->instance, LPF_CUTOF_PARAM, 300.0f);
+    lpf->interface->setParameter(lpf->instance, LPF_CUTOF_PARAM, 200.0f);
 
     AudioNode* out = create_audio_node(&OutputNodeModule);
     add_node(graph, out);
