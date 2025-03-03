@@ -144,7 +144,7 @@ void process_graph(AudioGraph *graph, int numSamples) {
 
         memset(node->inputBuffer, 0, numSamples*sizeof(float));
 
-        const float inputScale = 1.0f / (node->numIncoming + 1);
+        const float inputScale = 1.0f / (node->numIncoming);
         for (int j = 0; j < node->numIncoming; j++) {
             Connection *conn = node->incoming[j];
             AudioNode *src = conn->source;

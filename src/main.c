@@ -14,7 +14,7 @@
 #include "output_module.h"
 
 #define SAMPLE_RATE 44100
-#define NUM_SECONDS 20
+#define NUM_SECONDS 3
 #define SINE_FREQ   440.0f
 #define AMPLITUDE   0.2f
 #define MOD_FREQ    10.0f
@@ -180,7 +180,7 @@ int main(){
     AudioNode* lpf = create_audio_node(&LowPassFilterModule);
     add_node(graph, lpf);
 
-    lpf->interface->setParameter(lpf->instance, LPF_CUTOF_PARAM, 200.0f);
+    lpf->interface->setParameter(lpf->instance, LPF_CUTOF_PARAM, 500.0f);
 
     AudioNode* out = create_audio_node(&OutputNodeModule);
     add_node(graph, out);
@@ -223,6 +223,13 @@ int main(){
         Pa_Terminate();
         return 1;
     }
+
+    Pa_Sleep(NUM_SECONDS*1000);
+
+    sine_osc->interface->setParameter(sine_osc->instance, OSC_FREQUENCY_PARAM, 164.814f);
+    sine_osc_2->interface->setParameter(sine_osc_2->instance, OSC_FREQUENCY_PARAM, 195.998f);
+    sine_osc_3->interface->setParameter(sine_osc_3->instance, OSC_FREQUENCY_PARAM, 245.942f);
+
 
     Pa_Sleep(NUM_SECONDS*1000);
 
